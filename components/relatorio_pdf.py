@@ -2,6 +2,7 @@ from fpdf import FPDF
 import matplotlib.pyplot as plt
 import tempfile
 import os
+from io import BytesIO
 
 def gerar_relatorio_pdf(fazenda, talhao, cidade, data, dados_pontos, populacao_prevista, recomendacoes, caminho_imagem=None):
     pdf = FPDF()
@@ -45,8 +46,10 @@ def gerar_relatorio_pdf(fazenda, talhao, cidade, data, dados_pontos, populacao_p
         pdf.cell(0, 10, "Imagem do Talhão:", ln=True)
         pdf.image(caminho_imagem, w=180)
 
-    nome_arquivo = "relatorio.pdf"
-    pdf.output(nome_arquivo)
-    with open(nome_arquivo, "rb") as f:
-        import streamlit as st
-        st.download_button("📄 Download do Relatório", f, file_name=nome_arquivo)
+    # Gerar PDF em memória
+    pdf_buffer = BytesIO()
+    pdf.output(pdf_buffer)
+    pdf_buffer.seek(0)
+
+    import streamlit as st
+    st.download_button("📄 Download do Relatório", data=pdf_buffer, file_name="relatorio.pdf", mime="application/pdf")
