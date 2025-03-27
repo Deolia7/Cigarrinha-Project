@@ -1,61 +1,64 @@
 from fpdf import FPDF
-from datetime import datetime
 import os
+from datetime import datetime
 
 class PDF(FPDF):
     def header(self):
-        self.set_font('Arial', 'B', 14)
-        self.cell(0, 10, 'Relatório Técnico - Monitoramento da Cigarrinha-do-Milho', 0, 1, 'C')
+        self.set_font("Arial", "B", 12)
+        self.cell(0, 10, "Relatório de Monitoramento - Cigarrinha-do-Milho", ln=True, align="C")
         self.ln(5)
 
-    def chapter_title(self, title):
-        self.set_font('Arial', 'B', 12)
-        self.cell(0, 10, title, 0, 1)
-        self.ln(2)
+    def footer(self):
+        self.set_y(-15)
+        self.set_font("Arial", "I", 8)
+        self.cell(0, 10, f"Página {self.page_no()}", align="C")
 
-    def chapter_body(self, body):
-        self.set_font('Arial', '', 11)
-        self.multi_cell(0, 10, body)
-        self.ln()
-
-    def add_image(self, path, date_label):
-        self.add_page()
-        self.set_font('Arial', 'B', 12)
-        self.cell(0, 10, f'Foto registrada em: {date_label}', 0, 1)
-        self.image(path, x=15, w=180)
-        self.ln(5)
-
-def gerar_relatorio_pdf(fazenda, talhao, cidade, data_avaliacao, dados_pontos, populacao_prevista, recomendacoes, imagem_path):
+def gerar_relatorio_pdf(fazenda, talhao, cidade, data_avaliacao, dados_pontos, populacao_prevista, recomendacoes, caminho_imagem=None):
     pdf = PDF()
     pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
 
-    pdf.set_font('Arial', '', 12)
+    # Dados da fazenda
+    pdf.set_font("Arial", "", 11)
+    pdf.cell(0, 10, f"Fazenda: {fazenda}", ln=True)
+    pdf.cell(0, 10, f"Talhão: {talhao}", ln=True)
+    pdf.cell(0, 10, f"Cidade/Coordenadas: {cidade}", ln=True)
+    pdf.cell(0, 10, f"Data da Avaliação: {data_avaliacao}", ln=True)
+    pdf.ln(5)
 
-    pdf.chapter_title("Informações Gerais")
-    info = f"Fazenda: {fazenda}\nTalhão: {talhao}\nCidade: {cidade}\nData da Avaliação: {data_avaliacao}"
-    pdf.chapter_body(info)
-
-    pdf.chapter_title("Dados da Avaliação")
+    # Tabela de dados de campo
+    pdf.set_font("Arial", "B", 11)
+    pdf.cell(0, 10, "Dados de Campo:", ln=True)
+    pdf.set_font("Arial", "", 11)
     for ponto in dados_pontos:
-        linha = f"Ponto {ponto['ponto']}: Adultos = {ponto['adultos']} | Ninfas = {ponto['ninfas']}"
-        pdf.chapter_body(linha)
+        pdf.cell(0, 10, f"Ponto {ponto['ponto']}: Adultos = {ponto['adultos']} | Ninfas = {ponto['ninfas']}", ln=True)
 
-    pdf.chapter_title("Previsão Populacional (30 dias)")
-    previsao_texto = ", ".join([f"{round(p, 2)}" for p in populacao_prevista])
-    pdf.chapter_body(previsao_texto)
+    pdf.ln(5)
 
-    pdf.chapter_title("Recomendações Técnicas")
-    pdf.chapter_body(recomendacoes.replace("•", "-"))
+    # Previsão
+    pdf.set_font("Arial", "B", 11)
+    pdf.cell(0, 10, "Previsão Populacional (Próximos 30 dias):", ln=True)
+    pdf.set_font("Arial", "", 11)
+    for dia, valor in enumerate(populacao_prevista, start=1):
+        pdf.cell(0, 10, f"Dia {dia}: {round(valor, 2)}", ln=True)
 
-    # Adicionar todas as imagens históricas do talhão
-    if fazenda and talhao:
-        pasta = "avaliacoes_salvas"
-        prefixo = f"{fazenda}_{talhao}_"
-        imagens = sorted([f for f in os.listdir(pasta) if f.endswith(".jpg") and prefixo in f])
-        for img in imagens:
-            data_str = img.replace(f"{prefixo}", "").replace(".jpg", "")
-            img_path = os.path.join(pasta, img)
-            pdf.add_image(img_path, data_str)
+    pdf.ln(5)
 
-    # Retorna binário
-    return pdf.output(dest='S').encode('latin1')
+    # Recomendação
+    pdf.set_font("Arial", "B", 11)
+    pdf.cell(0, 10, "Recomendações Técnicas:", ln=True)
+    pdf.set_font("Arial", "", 11)
+    for linha in recomendacoes.strip().split("\n"):
+        pdf.multi_cell(0, 10, linha.strip())
+
+    pdf.ln(5)
+
+    # Inserir imagem (caso exista)
+    if caminho_imagem and os.path.exists(caminho_imagem):
+        pdf.set_font("Arial", "B", 11)
+        pdf.cell(0, 10, "Imagem do Talhão:", ln=True)
+        pdf.image(caminho_imagem, w=150)
+        pdf.ln(5)
+
+    # Retorno do PDF corrigido para utf-8
+    return pdf.output(dest="S").encode("utf-8")
