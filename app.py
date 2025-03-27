@@ -46,7 +46,7 @@ if st.sidebar.button("Gerar Análise"):
         st.markdown(recomendacoes)
         st.success("Análise concluída.")
 
-        # Salvar dados da avaliação localmente
+        # Salvar dados localmente
         pasta = "avaliacoes_salvas"
         os.makedirs(pasta, exist_ok=True)
         nome_base = f"{fazenda}_{talhao}_{data_avaliacao}".replace(" ", "_")
@@ -68,5 +68,16 @@ if st.sidebar.button("Gerar Análise"):
                 img.write(imagem.read())
             caminho_imagem = imagem_path
 
-        if st.button("Baixar Relatório PDF"):
-            gerar_relatorio_pdf(fazenda, talhao, cidade, data_avaliacao, dados_pontos, populacao_prevista, recomendacoes, caminho_imagem)
+        # ✅ Gerar PDF e oferecer para download
+        pdf_file = gerar_relatorio_pdf(
+            fazenda, talhao, cidade, data_avaliacao,
+            dados_pontos, populacao_prevista,
+            recomendacoes, caminho_imagem
+        )
+
+        st.download_button(
+            label="📄 Download do Relatório",
+            data=pdf_file,
+            file_name="relatorio.pdf",
+            mime="application/pdf"
+        )
