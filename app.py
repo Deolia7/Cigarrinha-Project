@@ -45,7 +45,10 @@ if st.sidebar.button("Gerar Análise"):
     with st.spinner("Analisando dados..."):
         clima = obter_dados_climaticos(cidade)
         if "erro" in clima:
-            st.error(f"Erro ao obter dados climáticos: {clima['erro']}")
+            if "Nothing to geocode" in clima["erro"]:
+                st.error("⚠️ Por favor, preencha corretamente o campo *Cidade ou Coordenadas* para obter os dados climáticos.")
+            else:
+                st.error(f"Erro ao obter dados climáticos: {clima['erro']}")
             st.stop()
 
         st.expander("🔍 Dados climáticos brutos").write(clima)
@@ -61,19 +64,23 @@ if st.sidebar.button("Gerar Análise"):
         historico = {h["data"]: h for h in historico}
         historico = list(historico.values())
 
-        # Calcula médias históricas por ponto
+        # Calcular médias históricas com segurança
         soma_adultos = [0] * num_pontos
         soma_ninfas = [0] * num_pontos
-        total_avaliacoes = len(historico)
+        contagem_validos = [0] * num_pontos
 
         for h in historico:
             for i, ponto in enumerate(h["dados_pontos"]):
-                soma_adultos[i] += ponto["adultos"]
-                soma_ninfas[i] += ponto["ninfas"]
+                if i < num_pontos:
+                    soma_adultos[i] += ponto["adultos"]
+                    soma_ninfas[i] += ponto["ninfas"]
+                    contagem_validos[i] += 1
 
-        media_pontos = [{"ponto": i+1,
-                         "adultos": round(soma_adultos[i] / total_avaliacoes, 1),
-                         "ninfas": round(soma_ninfas[i] / total_avaliacoes, 1)} for i in range(num_pontos)]
+        media_pontos = []
+        for i in range(num_pontos):
+            adultos = round(soma_adultos[i] / contagem_validos[i], 1) if contagem_validos[i] > 0 else 0
+            ninfas = round(soma_ninfas[i] / contagem_validos[i], 1) if contagem_validos[i] > 0 else 0
+            media_pontos.append({"ponto": i+1, "adultos": adultos, "ninfas": ninfas})
 
         # Previsão e recomendações com base na avaliação atual
         populacao_prevista = prever_populacao(dados_pontos, clima)
