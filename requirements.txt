@@ -1,6 +1,0 @@
-streamlit
-fpdf
-matplotlib
-pandas
-requests
-geopy
