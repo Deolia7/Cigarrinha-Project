@@ -1,7 +1,0 @@
-
-streamlit
-matplotlib
-numpy
-pandas
-requests
-fpdf
