@@ -1,64 +1,78 @@
 from fpdf import FPDF
-import os
+from io import BytesIO
 from datetime import datetime
+import os
 
 class PDF(FPDF):
     def header(self):
-        self.set_font("Arial", "B", 12)
+        self.set_font("Arial", "B", 14)
         self.cell(0, 10, "Relatório de Monitoramento - Cigarrinha-do-Milho", ln=True, align="C")
         self.ln(5)
 
     def footer(self):
         self.set_y(-15)
         self.set_font("Arial", "I", 8)
-        self.cell(0, 10, f"Página {self.page_no()}", align="C")
+        self.cell(0, 10, f"Página {self.page_no()}", 0, 0, "C")
 
-def gerar_relatorio_pdf(fazenda, talhao, cidade, data_avaliacao, dados_pontos, populacao_prevista, recomendacoes, caminho_imagem=None):
+def gerar_relatorio_pdf(talhao, cidade, media_adultos, media_ninfas, media_total, clima_data, clima_temps, clima_ums, recomendacoes, fotos, historico):
     pdf = PDF()
     pdf.add_page()
-    pdf.set_auto_page_break(auto=True, margin=15)
 
-    # Dados da fazenda
-    pdf.set_font("Arial", "", 11)
-    pdf.cell(0, 10, f"Fazenda: {fazenda}", ln=True)
+    # Dados Gerais
+    pdf.set_font("Arial", size=12)
     pdf.cell(0, 10, f"Talhão: {talhao}", ln=True)
-    pdf.cell(0, 10, f"Cidade/Coordenadas: {cidade}", ln=True)
-    pdf.cell(0, 10, f"Data da Avaliação: {data_avaliacao}", ln=True)
+    pdf.cell(0, 10, f"Cidade/Coordenada: {cidade}", ln=True)
+    pdf.cell(0, 10, f"Data da Avaliação: {datetime.today().strftime('%Y-%m-%d')}", ln=True)
     pdf.ln(5)
 
-    # Tabela de dados de campo
-    pdf.set_font("Arial", "B", 11)
-    pdf.cell(0, 10, "Dados de Campo:", ln=True)
-    pdf.set_font("Arial", "", 11)
-    for ponto in dados_pontos:
-        pdf.cell(0, 10, f"Ponto {ponto['ponto']}: Adultos = {ponto['adultos']} | Ninfas = {ponto['ninfas']}", ln=True)
-
+    # População
+    pdf.set_font("Arial", "B", 12)
+    pdf.cell(0, 10, "População Observada:", ln=True)
+    pdf.set_font("Arial", size=12)
+    pdf.cell(0, 10, f"- Média de Adultos: {media_adultos:.1f}", ln=True)
+    pdf.cell(0, 10, f"- Média de Ninfas: {media_ninfas:.1f}", ln=True)
+    pdf.cell(0, 10, f"- Total: {media_total:.1f}", ln=True)
     pdf.ln(5)
 
-    # Previsão
-    pdf.set_font("Arial", "B", 11)
-    pdf.cell(0, 10, "Previsão Populacional (Próximos 30 dias):", ln=True)
-    pdf.set_font("Arial", "", 11)
-    for dia, valor in enumerate(populacao_prevista, start=1):
-        pdf.cell(0, 10, f"Dia {dia}: {round(valor, 2)}", ln=True)
-
+    # Clima
+    pdf.set_font("Arial", "B", 12)
+    pdf.cell(0, 10, "Clima (últimos dias):", ln=True)
+    pdf.set_font("Arial", size=12)
+    for data, temp, um in zip(clima_data, clima_temps, clima_ums):
+        pdf.cell(0, 10, f"- {data}: {temp:.1f}°C / {um:.0f}% UR", ln=True)
     pdf.ln(5)
 
-    # Recomendação
-    pdf.set_font("Arial", "B", 11)
+    # Recomendação Técnica
+    pdf.set_font("Arial", "B", 12)
     pdf.cell(0, 10, "Recomendações Técnicas:", ln=True)
-    pdf.set_font("Arial", "", 11)
-    for linha in recomendacoes.strip().split("\n"):
-        pdf.multi_cell(0, 10, linha.strip())
-
+    pdf.set_font("Arial", size=12)
+    for item in recomendacoes:
+        pdf.multi_cell(0, 10, f"- {item}")
     pdf.ln(5)
 
-    # Inserir imagem (caso exista)
-    if caminho_imagem and os.path.exists(caminho_imagem):
-        pdf.set_font("Arial", "B", 11)
-        pdf.cell(0, 10, "Imagem do Talhão:", ln=True)
-        pdf.image(caminho_imagem, w=150)
+    # Histórico de Avaliações
+    if historico is not None and not historico.empty:
+        pdf.set_font("Arial", "B", 12)
+        pdf.cell(0, 10, "Histórico de Avaliações:", ln=True)
+        pdf.set_font("Arial", size=12)
+        for idx, row in historico.iterrows():
+            data = row['Data']
+            real = row['População Real (média)']
+            prev = row['População Prevista (modelo)']
+            pdf.cell(0, 10, f"{data}: Real = {real}, Previsto = {prev}", ln=True)
         pdf.ln(5)
 
-    # Retorno do PDF corrigido para utf-8
-    return pdf.output(dest="S").encode("utf-8")
+    # Fotos anexadas
+    if fotos:
+        pdf.set_font("Arial", "B", 12)
+        pdf.cell(0, 10, "Fotos do Talhão:", ln=True)
+        for foto in fotos:
+            if os.path.exists(foto):
+                pdf.image(foto, w=100)
+                pdf.ln(3)
+
+    # Exportar para buffer
+    pdf_buffer = BytesIO()
+    pdf.output(pdf_buffer)
+    pdf_buffer.seek(0)
+    return pdf_buffer.read()
