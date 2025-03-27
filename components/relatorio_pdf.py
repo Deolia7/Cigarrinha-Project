@@ -2,7 +2,6 @@ from fpdf import FPDF
 import matplotlib.pyplot as plt
 import tempfile
 import os
-from io import BytesIO
 
 def remover_acentos(texto):
     import unicodedata
@@ -41,3 +40,15 @@ def gerar_relatorio_pdf(fazenda, talhao, cidade, data, dados_pontos, populacao_p
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
         fig.savefig(tmpfile.name)
+        pdf.image(tmpfile.name, w=180)
+        os.unlink(tmpfile.name)
+
+    if caminho_imagem and os.path.exists(caminho_imagem):
+        pdf.add_page()
+        pdf.set_font("Arial", "B", 12)
+        pdf.cell(0, 10, "Imagem do Talhao:", ln=True)
+        pdf.image(caminho_imagem, w=180)
+
+    # ✅ CORREÇÃO CRÍTICA:
+    pdf_bytes = pdf.output(dest='S').encode('latin-1')
+    return pdf_bytes
