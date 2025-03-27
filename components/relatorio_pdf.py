@@ -51,6 +51,6 @@ def gerar_relatorio_pdf(fazenda, talhao, cidade, data, dados_pontos, populacao_p
         pdf.cell(0, 10, "Imagem do Talhao:", ln=True)
         pdf.image(caminho_imagem, w=180)
 
-    # ✅ Retorna o conteúdo do PDF como bytes puros, compatível com Streamlit
-    pdf_bytes = bytes(pdf.output(dest='S').encode('latin-1'))
+    # ✅ Gera o conteúdo do PDF em bytes compatível com Streamlit
+    pdf_bytes = pdf.output(dest='S').encode('latin-1')
     return pdf_bytes
