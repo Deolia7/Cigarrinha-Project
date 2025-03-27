@@ -3,7 +3,8 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 
-def plotar_graficos(dados_pontos, populacao_prevista):
+def plotar_graficos(dados_pontos, populacao_prevista, historico_df=None):
+    # Gráfico 1 - População Atual por Ponto de Coleta
     st.subheader("Gráfico 1 - População Atual por Ponto de Coleta")
     df_atual = pd.DataFrame(dados_pontos)
     fig1, ax1 = plt.subplots()
@@ -15,6 +16,7 @@ def plotar_graficos(dados_pontos, populacao_prevista):
     ax1.legend()
     st.pyplot(fig1)
 
+    # Gráfico 2 - Previsão Populacional para os Próximos Dias
     st.subheader("Gráfico 2 - Previsão Populacional para os Próximos Dias")
     dias = [datetime.today() + timedelta(days=i) for i in range(len(populacao_prevista))]
     fig2, ax2 = plt.subplots()
@@ -25,6 +27,7 @@ def plotar_graficos(dados_pontos, populacao_prevista):
     fig2.autofmt_xdate(rotation=30)
     st.pyplot(fig2)
 
+    # Gráfico 3 - Comparativo Atual vs. Pico Previsto
     st.subheader("Gráfico 3 - Comparativo Atual vs. Pico Previsto")
     pop_atual = sum(p["adultos"] + p["ninfas"] for p in dados_pontos)
     pico = max(populacao_prevista)
@@ -34,3 +37,19 @@ def plotar_graficos(dados_pontos, populacao_prevista):
     ax3.set_title("Comparativo da Infestação")
     ax3.set_ylabel("População")
     st.pyplot(fig3)
+
+    # Gráfico 4 - Histórico de Avaliações Reais vs. Modelo
+    if historico_df is not None and not historico_df.empty:
+        st.subheader("Gráfico 4 - Histórico: População Real vs. Modelo")
+        historico_df['Data'] = pd.to_datetime(historico_df['Data'])
+        historico_df = historico_df.sort_values('Data')
+
+        fig4, ax4 = plt.subplots()
+        ax4.plot(historico_df['Data'], historico_df['População Real (média)'], marker='o', label="Real", color="blue")
+        ax4.plot(historico_df['Data'], historico_df['População Prevista (modelo)'], marker='s', linestyle="--", label="Modelo", color="orange")
+        ax4.set_title("Histórico de População: Real vs. Modelo")
+        ax4.set_xlabel("Data da Avaliação")
+        ax4.set_ylabel("População Média")
+        ax4.legend()
+        fig4.autofmt_xdate(rotation=30)
+        st.pyplot(fig4)
