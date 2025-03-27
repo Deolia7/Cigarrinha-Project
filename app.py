@@ -1,113 +1,129 @@
-import streamlit as st
-from components.recomendacoes import gerar_recomendacoes
-from components.predicao_populacional import prever_populacao
-from components.api_weather import obter_dados_climaticos
-from components.graficos import gerar_graficos
-from components.relatorio_pdf import gerar_relatorio_pdf
-import pandas as pd
-from datetime import datetime
 import os
+import streamlit as st
+import pandas as pd
+import matplotlib.pyplot as plt
+from datetime import datetime
 from PIL import Image
-import uuid
 
+from utils.api_weather import obter_dados_climaticos
+from utils.recomendacoes import gerar_recomendacoes
+from models.predicao_populacional import prever_populacao
+from components.graficos import (
+    plotar_grafico_populacional,
+    plotar_grafico_predicao,
+    plotar_grafico_comparativo
+)
+from components.relatorio_pdf import gerar_relatorio_pdf
+
+# Garantir que a pasta de avaliações esteja criada
+os.makedirs("avaliacoes_salvas", exist_ok=True)
+
+# Configuração da página
 st.set_page_config(page_title="Monitoramento da Cigarrinha-do-Milho", layout="wide")
-
 st.title("🌽 Monitoramento da Cigarrinha-do-Milho")
 
-# 📁 Criar pastas se não existirem
-os.makedirs("avaliacoes_salvas", exist_ok=True)
-os.makedirs("fotos_salvas", exist_ok=True)
+# Entrada de localização
+st.subheader("🌎 Local da Avaliação")
+local = st.text_input("Digite o nome da cidade ou coordenadas (ex: 18°23'26.8\"S 52°38'08.3\"W)", "")
 
-# 📋 Entrada de dados
-with st.form("avaliacao_form"):
-    st.subheader("Cadastro da Avaliação")
-    talhao = st.text_input("Nome do Talhão")
-    cidade = st.text_input("Cidade ou Coordenada (ex: 'Rio Verde' ou '-18.91,-50.16')")
+# Obter dados climáticos
+clima = {}
+if local:
+    try:
+        clima = obter_dados_climaticos(local)
+        with st.expander("📉 Dados climáticos brutos"):
+            st.json(clima)
+    except Exception as e:
+        st.error(f"Erro ao obter dados climáticos: {e}")
+else:
+    st.warning("Por favor, preencha o campo de localização.")
 
+# Cadastro da fazenda e talhão
+st.subheader("🏡 Identificação")
+fazenda = st.text_input("Nome da Fazenda")
+talhao = st.text_input("Nome do Talhão")
+
+# Data da avaliação
+data_avaliacao = st.date_input("Data da Avaliação", value=datetime.today())
+
+# Pontos de avaliação
+st.subheader("📍 Avaliação da População")
+dados_pontos = []
+for i in range(1, 6):
     col1, col2 = st.columns(2)
     with col1:
-        data_avaliacao = st.date_input("Data da Avaliação", value=datetime.today())
-        adultos = st.number_input("Nº médio de Adultos", 0.0, 100.0, 0.0, step=0.1)
-        ninfas = st.number_input("Nº médio de Ninfas", 0.0, 100.0, 0.0, step=0.1)
+        adultos = st.number_input(f"Nº de Adultos - Ponto {i}", min_value=0, step=1)
     with col2:
-        foto = st.file_uploader("Foto do Talhão (opcional)", type=["jpg", "jpeg", "png"])
+        ninfas = st.number_input(f"Nº de Ninfas - Ponto {i}", min_value=0, step=1)
+    dados_pontos.append({"adultos": adultos, "ninfas": ninfas})
 
-    submit = st.form_submit_button("Gerar Análise")
+# Upload de imagem (opcional)
+st.subheader("📷 Foto do Talhão (opcional)")
+imagem = st.file_uploader("Envie uma imagem do talhão", type=["jpg", "jpeg", "png"])
 
-# 🔄 Processamento
-if submit:
-    if not cidade.strip():
-        st.error("⚠️ Por favor, preencha a cidade ou coordenadas corretamente.")
-    else:
-        try:
-            with st.spinner("Analisando..."):
+# Botão de análise
+if st.button("Gerar Análise"):
+    try:
+        # Previsão
+        populacao_prevista = prever_populacao(clima, len(dados_pontos))
 
-                # 🌡️ Clima
-                datas_clima, temps, ums = obter_dados_climaticos(cidade)
+        # Recomendação
+        recomendacoes = gerar_recomendacoes(dados_pontos, populacao_prevista)
 
-                # 🐛 População
-                media_total = adultos + ninfas
-                previsao = prever_populacao(datas_clima, temps, ums)
+        # População real média
+        media_real = sum(p["adultos"] + p["ninfas"] for p in dados_pontos) / len(dados_pontos)
 
-                # 💡 Recomendação
-                recomendacoes = gerar_recomendacoes(media_total, previsao)
+        # Nome do arquivo por talhão
+        nome_talhao = f"{fazenda}_{talhao}".replace(" ", "_")
+        caminho = f"avaliacoes_salvas/{nome_talhao}.csv"
+        nova_linha = {
+            "Data": str(data_avaliacao),
+            "População Real (média)": round(media_real, 1),
+            "População Prevista (modelo)": round(populacao_prevista[0], 1)
+        }
 
-                # 🖼️ Salvar imagem se enviada
-                foto_path = None
-                if foto:
-                    foto_id = str(uuid.uuid4())
-                    ext = os.path.splitext(foto.name)[-1]
-                    foto_path = f"fotos_salvas/{foto_id}{ext}"
-                    with open(foto_path, "wb") as f:
-                        f.write(foto.read())
+        # Salvar histórico
+        if os.path.exists(caminho):
+            df_antigo = pd.read_csv(caminho)
+            df_novo = pd.concat([df_antigo, pd.DataFrame([nova_linha])], ignore_index=True)
+        else:
+            df_novo = pd.DataFrame([nova_linha])
+        df_novo.to_csv(caminho, index=False)
 
-                # 💾 Histórico por talhão
-                historico_path = f"avaliacoes_salvas/{talhao}.csv"
-                if os.path.exists(historico_path):
-                    df_hist = pd.read_csv(historico_path)
-                else:
-                    df_hist = pd.DataFrame(columns=["Data", "População Real (média)", "População Prevista (modelo)"])
+        # Exibir recomendação
+        st.success("Análise concluída.")
+        st.subheader("📌 Recomendações Técnicas")
+        st.markdown(recomendacoes)
 
-                nova_entrada = {
-                    "Data": data_avaliacao.strftime("%Y-%m-%d"),
-                    "População Real (média)": media_total,
-                    "População Prevista (modelo)": round(previsao, 1)
-                }
-                df_hist = pd.concat([df_hist, pd.DataFrame([nova_entrada])], ignore_index=True)
-                df_hist.drop_duplicates(subset="Data", keep="last", inplace=True)
-                df_hist.to_csv(historico_path, index=False)
+        # Gráficos
+        st.subheader("📊 Evolução Populacional")
+        st.pyplot(plotar_grafico_populacional(dados_pontos))
 
-                # 📈 Gráficos
-                st.subheader("📊 Gráficos Populacionais")
-                gerar_graficos(df_hist)
+        st.subheader("📈 Previsão Populacional (30 dias)")
+        st.pyplot(plotar_grafico_predicao(populacao_prevista))
 
-                # 📋 Tabela de histórico
-                st.subheader("📋 Histórico de Avaliações")
-                st.dataframe(df_hist)
-                st.download_button("⬇️ Baixar histórico em CSV", df_hist.to_csv(index=False), file_name="historico.csv", mime="text/csv")
+        # Histórico
+        st.subheader("📋 Histórico de Avaliações")
+        st.dataframe(df_novo)
+        st.download_button("📥 Baixar histórico em CSV", data=df_novo.to_csv(index=False), file_name="historico.csv")
 
-                # 📄 Relatório PDF
-                pdf_file = gerar_relatorio_pdf(
-                    talhao=talhao,
-                    cidade=cidade,
-                    media_adultos=adultos,
-                    media_ninfas=ninfas,
-                    media_total=media_total,
-                    clima_data=datas_clima,
-                    clima_temps=temps,
-                    clima_ums=ums,
-                    recomendacoes=recomendacoes,
-                    fotos=[foto_path] if foto_path else [],
-                    historico=df_hist
-                )
+        # Comparativo real vs previsto
+        st.subheader("📉 Comparativo Real vs Modelo")
+        st.pyplot(plotar_grafico_comparativo(df_novo))
 
-                st.download_button(
-                    label="📥 Baixar Relatório PDF",
-                    data=pdf_file,
-                    file_name="relatorio_cigarrinha.pdf",
-                    mime="application/pdf"
-                )
+        # Geração de PDF
+        if st.button("📄 Baixar Relatório PDF"):
+            pdf_file = gerar_relatorio_pdf(
+                nome_fazenda=fazenda,
+                nome_talhao=talhao,
+                data=str(data_avaliacao),
+                dados_pontos=dados_pontos,
+                populacao_prevista=populacao_prevista,
+                recomendacoes=recomendacoes,
+                imagem=imagem,
+                historico=df_novo
+            )
+            st.download_button("📄 Clique aqui para baixar o PDF", data=pdf_file, file_name="relatorio.pdf")
 
-                st.success("Análise concluída.")
-        except Exception as e:
-            st.error(f"Erro ao processar os dados: {e}")
+    except Exception as e:
+        st.error(f"Ocorreu um erro durante a análise: {e}")
