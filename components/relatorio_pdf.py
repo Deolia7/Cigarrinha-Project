@@ -4,50 +4,40 @@ import tempfile
 import os
 from io import BytesIO
 
+def remover_acentos(texto):
+    import unicodedata
+    return unicodedata.normalize('NFKD', texto).encode('ASCII', 'ignore').decode('ASCII')
+
 def gerar_relatorio_pdf(fazenda, talhao, cidade, data, dados_pontos, populacao_prevista, recomendacoes, caminho_imagem=None):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", "B", 14)
-    pdf.cell(0, 10, "Relatório Técnico - Monitoramento da Cigarrinha-do-Milho", ln=True)
+    pdf.cell(0, 10, remover_acentos("Relatório Técnico - Monitoramento da Cigarrinha-do-Milho"), ln=True)
     pdf.set_font("Arial", "", 12)
-    pdf.cell(0, 10, f"Fazenda: {fazenda} | Talhão: {talhao}", ln=True)
-    pdf.cell(0, 10, f"Cidade: {cidade} | Data: {data}", ln=True)
+    pdf.cell(0, 10, f"Fazenda: {remover_acentos(fazenda)} | Talhao: {remover_acentos(talhao)}", ln=True)
+    pdf.cell(0, 10, f"Cidade: {remover_acentos(cidade)} | Data: {data}", ln=True)
     pdf.ln(5)
 
     pdf.set_font("Arial", "B", 12)
     pdf.cell(0, 10, "Dados de Campo:", ln=True)
     pdf.set_font("Arial", "", 11)
     for p in dados_pontos:
-        pdf.cell(0, 8, f"Ponto {p['ponto']}: Adultos = {p['adultos']} | Ninfas = {p['ninfas']}", ln=True)
+        linha = f"Ponto {p['ponto']}: Adultos = {p['adultos']} | Ninfas = {p['ninfas']}"
+        pdf.cell(0, 8, remover_acentos(linha), ln=True)
 
     pdf.ln(5)
     pdf.set_font("Arial", "B", 12)
-    pdf.cell(0, 10, "Recomendações:", ln=True)
+    pdf.cell(0, 10, "Recomendacoes:", ln=True)
     pdf.set_font("Arial", "", 11)
     for linha in recomendacoes.split("\n"):
-        pdf.multi_cell(0, 7, linha)
+        pdf.multi_cell(0, 7, remover_acentos(linha))
 
-    # Gráfico de previsão populacional
     dias = list(range(len(populacao_prevista)))
     fig, ax = plt.subplots()
     ax.plot(dias, populacao_prevista, marker='o')
-    ax.set_title("Previsão Populacional (30 dias)")
+    ax.set_title("Previsao Populacional (30 dias)")
     ax.set_xlabel("Dias")
-    ax.set_ylabel("População Estimada")
+    ax.set_ylabel("Populacao Estimada")
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
         fig.savefig(tmpfile.name)
-        pdf.image(tmpfile.name, w=180)
-        os.unlink(tmpfile.name)
-
-    if caminho_imagem and os.path.exists(caminho_imagem):
-        pdf.add_page()
-        pdf.set_font("Arial", "B", 12)
-        pdf.cell(0, 10, "Imagem do Talhão:", ln=True)
-        pdf.image(caminho_imagem, w=180)
-
-    # Exportar como arquivo em memória (BytesIO)
-    pdf_buffer = BytesIO()
-    pdf.output(pdf_buffer)
-    pdf_buffer.seek(0)
-    return pdf_buffer
