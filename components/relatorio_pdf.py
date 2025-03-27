@@ -1,56 +1,61 @@
 from fpdf import FPDF
-import matplotlib.pyplot as plt
-import tempfile
+from datetime import datetime
 import os
 
-def remover_acentos(texto):
-    import unicodedata
-    return unicodedata.normalize('NFKD', texto).encode('ASCII', 'ignore').decode('ASCII')
+class PDF(FPDF):
+    def header(self):
+        self.set_font('Arial', 'B', 14)
+        self.cell(0, 10, 'Relatório Técnico - Monitoramento da Cigarrinha-do-Milho', 0, 1, 'C')
+        self.ln(5)
 
-def gerar_relatorio_pdf(fazenda, talhao, cidade, data, dados_pontos, populacao_prevista, recomendacoes, caminho_imagem=None):
-    pdf = FPDF()
+    def chapter_title(self, title):
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 10, title, 0, 1)
+        self.ln(2)
+
+    def chapter_body(self, body):
+        self.set_font('Arial', '', 11)
+        self.multi_cell(0, 10, body)
+        self.ln()
+
+    def add_image(self, path, date_label):
+        self.add_page()
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 10, f'Foto registrada em: {date_label}', 0, 1)
+        self.image(path, x=15, w=180)
+        self.ln(5)
+
+def gerar_relatorio_pdf(fazenda, talhao, cidade, data_avaliacao, dados_pontos, populacao_prevista, recomendacoes, imagem_path):
+    pdf = PDF()
     pdf.add_page()
-    pdf.set_font("Arial", "B", 14)
-    pdf.cell(0, 10, remover_acentos("Relatório Técnico - Monitoramento da Cigarrinha-do-Milho"), ln=True)
-    pdf.set_font("Arial", "", 12)
-    pdf.cell(0, 10, f"Fazenda: {remover_acentos(fazenda)} | Talhao: {remover_acentos(talhao)}", ln=True)
-    pdf.cell(0, 10, f"Cidade: {remover_acentos(cidade)} | Data: {data}", ln=True)
-    pdf.ln(5)
 
-    pdf.set_font("Arial", "B", 12)
-    pdf.cell(0, 10, "Dados de Campo:", ln=True)
-    pdf.set_font("Arial", "", 11)
-    for p in dados_pontos:
-        linha = f"Ponto {p['ponto']}: Adultos = {p['adultos']} | Ninfas = {p['ninfas']}"
-        pdf.cell(0, 8, remover_acentos(linha), ln=True)
+    pdf.set_font('Arial', '', 12)
 
-    pdf.ln(5)
-    pdf.set_font("Arial", "B", 12)
-    pdf.cell(0, 10, "Recomendacoes:", ln=True)
-    pdf.set_font("Arial", "", 11)
-    for linha in recomendacoes.split("\n"):
-        pdf.multi_cell(0, 7, remover_acentos(linha))
+    pdf.chapter_title("Informações Gerais")
+    info = f"Fazenda: {fazenda}\nTalhão: {talhao}\nCidade: {cidade}\nData da Avaliação: {data_avaliacao}"
+    pdf.chapter_body(info)
 
-    dias = list(range(len(populacao_prevista)))
-    fig, ax = plt.subplots(figsize=(6, 4), dpi=80)
-    ax.plot(dias, populacao_prevista, marker='o')
-    ax.set_title("Previsao Populacional (30 dias)")
-    ax.set_xlabel("Dias")
-    ax.set_ylabel("Populacao Estimada")
-    plt.tight_layout()
+    pdf.chapter_title("Dados da Avaliação")
+    for ponto in dados_pontos:
+        linha = f"Ponto {ponto['ponto']}: Adultos = {ponto['adultos']} | Ninfas = {ponto['ninfas']}"
+        pdf.chapter_body(linha)
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
-        fig.savefig(tmpfile.name)
-        pdf.image(tmpfile.name, w=180)
-        os.unlink(tmpfile.name)
-    plt.close(fig)
+    pdf.chapter_title("Previsão Populacional (30 dias)")
+    previsao_texto = ", ".join([f"{round(p, 2)}" for p in populacao_prevista])
+    pdf.chapter_body(previsao_texto)
 
-    if caminho_imagem and os.path.exists(caminho_imagem):
-        pdf.add_page()
-        pdf.set_font("Arial", "B", 12)
-        pdf.cell(0, 10, "Imagem do Talhao:", ln=True)
-        pdf.image(caminho_imagem, w=180)
+    pdf.chapter_title("Recomendações Técnicas")
+    pdf.chapter_body(recomendacoes.replace("•", "-"))
 
-    # ✅ Gera o conteúdo do PDF em bytes compatível com Streamlit
-    pdf_bytes = pdf.output(dest='S').encode('latin-1')
-    return pdf_bytes
+    # Adicionar todas as imagens históricas do talhão
+    if fazenda and talhao:
+        pasta = "avaliacoes_salvas"
+        prefixo = f"{fazenda}_{talhao}_"
+        imagens = sorted([f for f in os.listdir(pasta) if f.endswith(".jpg") and prefixo in f])
+        for img in imagens:
+            data_str = img.replace(f"{prefixo}", "").replace(".jpg", "")
+            img_path = os.path.join(pasta, img)
+            pdf.add_image(img_path, data_str)
+
+    # Retorna binário
+    return pdf.output(dest='S').encode('latin1')
