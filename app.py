@@ -11,6 +11,16 @@ import json
 st.set_page_config(page_title="Monitoramento da Cigarrinha-do-Milho", layout="wide")
 st.title("Monitoramento da Cigarrinha-do-Milho")
 
+def carregar_historico_avaliacoes(fazenda, talhao):
+    pasta = "avaliacoes_salvas"
+    historico = []
+    if os.path.exists(pasta):
+        for arquivo in os.listdir(pasta):
+            if arquivo.endswith(".json") and f"{fazenda}_{talhao}" in arquivo:
+                with open(os.path.join(pasta, arquivo), "r") as f:
+                    historico.append(json.load(f))
+    return historico
+
 st.sidebar.header("Cadastro da Avaliação")
 fazenda = st.sidebar.text_input("Nome da Fazenda")
 talhao = st.sidebar.text_input("Nome do Talhão")
@@ -38,15 +48,40 @@ if st.sidebar.button("Gerar Análise"):
 
         st.expander("🔍 Dados climáticos brutos").write(clima)
 
+        # Carrega histórico e calcula média
+        historico = carregar_historico_avaliacoes(fazenda, talhao)
+        historico.append({
+            "data": str(data_avaliacao),
+            "dados_pontos": dados_pontos
+        })
+
+        # Calcula médias históricas
+        soma_adultos = [0] * num_pontos
+        soma_ninfas = [0] * num_pontos
+        total_avaliacoes = len(historico)
+
+        for h in historico:
+            for i, ponto in enumerate(h["dados_pontos"]):
+                soma_adultos[i] += ponto["adultos"]
+                soma_ninfas[i] += ponto["ninfas"]
+
+        media_pontos = [{"ponto": i+1,
+                         "adultos": round(soma_adultos[i] / total_avaliacoes, 1),
+                         "ninfas": round(soma_ninfas[i] / total_avaliacoes, 1)} for i in range(num_pontos)]
+
+        # Previsão e recomendações com base na avaliação atual
         populacao_prevista = prever_populacao(dados_pontos, clima)
         recomendacoes = gerar_recomendacoes(dados_pontos, populacao_prevista)
-        plotar_graficos(dados_pontos, populacao_prevista)
+
+        # Exibe gráficos com médias históricas e nova avaliação
+        st.subheader("📊 Histórico e Previsão Populacional")
+        plotar_graficos(media_pontos, populacao_prevista)
 
         st.subheader("Recomendações Técnicas")
         st.markdown(recomendacoes)
         st.success("Análise concluída.")
 
-        # Salvar dados localmente
+        # Salva dados
         pasta = "avaliacoes_salvas"
         os.makedirs(pasta, exist_ok=True)
         nome_base = f"{fazenda}_{talhao}_{data_avaliacao}".replace(" ", "_")
@@ -68,7 +103,6 @@ if st.sidebar.button("Gerar Análise"):
                 img.write(imagem.read())
             caminho_imagem = imagem_path
 
-        # ✅ Gerar PDF e oferecer para download
         pdf_file = gerar_relatorio_pdf(
             fazenda, talhao, cidade, data_avaliacao,
             dados_pontos, populacao_prevista,
