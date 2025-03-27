@@ -68,5 +68,16 @@ if st.sidebar.button("Gerar Análise"):
                 img.write(imagem.read())
             caminho_imagem = imagem_path
 
-        if st.button("Baixar Relatório PDF"):
-            gerar_relatorio_pdf(fazenda, talhao, cidade, data_avaliacao, dados_pontos, populacao_prevista, recomendacoes, caminho_imagem)
+        # Gerar o PDF e oferecer download
+        pdf_file = gerar_relatorio_pdf(
+            fazenda, talhao, cidade, data_avaliacao,
+            dados_pontos, populacao_prevista,
+            recomendacoes, caminho_imagem
+        )
+
+        st.download_button(
+            label="📄 Download do Relatório",
+            data=pdf_file,
+            file_name="relatorio.pdf",
+            mime="application/pdf"
+        )
