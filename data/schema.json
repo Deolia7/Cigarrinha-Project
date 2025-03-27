@@ -1,0 +1,12 @@
+
+{
+  "fazenda": "Fazenda Santa Rita",
+  "talhao": "Talhão 1",
+  "cidade": "Rondonópolis",
+  "data_avaliacao": "2025-03-27",
+  "dados_pontos": [
+    {"ponto": 1, "adultos": 10, "ninfas": 5},
+    {"ponto": 2, "adultos": 8, "ninfas": 3},
+    {"ponto": 3, "adultos": 12, "ninfas": 4}
+  ]
+}
