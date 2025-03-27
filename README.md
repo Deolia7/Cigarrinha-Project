@@ -1,4 +1,4 @@
-# Monitoramento da Cigarrinha-do-Milho 🐛🌽
+# Monitoramento da Cigarrinha-do-Milho 🪲🌽
 
 Este é um aplicativo interativo para auxiliar técnicos agrícolas no **monitoramento da população da cigarrinha-do-milho (Dalbulus maidis)** com base em dados coletados no campo e previsão climática.
 
