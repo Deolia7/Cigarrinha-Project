@@ -18,7 +18,7 @@ def carregar_historico_avaliacoes(fazenda, talhao):
     historico = []
     if os.path.exists(pasta):
         for arquivo in os.listdir(pasta):
-            if arquivo.endswith(".json") and f"{fazenda}_{talhao}" in arquivo:
+            if arquivo.endswith(".json") and f"{fazenda}_{talhao}_" in arquivo:
                 with open(os.path.join(pasta, arquivo), "r") as f:
                     historico.append(json.load(f))
     return historico
@@ -57,6 +57,10 @@ if st.sidebar.button("Gerar Análise"):
             "dados_pontos": dados_pontos
         })
 
+        # Remove duplicações com mesma data
+        historico = {h["data"]: h for h in historico}
+        historico = list(historico.values())
+
         # Calcula médias históricas por ponto
         soma_adultos = [0] * num_pontos
         soma_ninfas = [0] * num_pontos
@@ -75,11 +79,9 @@ if st.sidebar.button("Gerar Análise"):
         populacao_prevista = prever_populacao(dados_pontos, clima)
         recomendacoes = gerar_recomendacoes(dados_pontos, populacao_prevista)
 
-        # Gráfico técnico
         st.subheader("📊 Gráficos Técnicos")
         plotar_graficos(media_pontos, populacao_prevista)
 
-        # 📈 Gráfico comparativo de histórico
         st.subheader("📉 Histórico: Real x Previsão")
         datas = []
         pop_reais = []
@@ -104,7 +106,6 @@ if st.sidebar.button("Gerar Análise"):
         plt.xticks(rotation=45)
         st.pyplot(fig)
 
-        # Tabela de histórico
         st.subheader("📋 Histórico de Avaliações")
         df_historico = pd.DataFrame({
             "Data": datas,
@@ -120,7 +121,6 @@ if st.sidebar.button("Gerar Análise"):
             mime="text/csv"
         )
 
-        # Recomendações
         st.subheader("📌 Recomendações Técnicas")
         st.markdown(recomendacoes)
         st.success("Análise concluída.")
