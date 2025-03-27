@@ -19,10 +19,10 @@ def gerar_relatorio_pdf(fazenda, talhao, nova_avaliacao, recomendacoes, historic
     pdf.set_font("Arial", "", 12)
     pdf.cell(0, 10, f"Fazenda: {fazenda}", ln=True)
     pdf.cell(0, 10, f"Talhão: {talhao}", ln=True)
-    pdf.cell(0, 10, f"Data da Avaliação: {nova_avaliacao['data']}", ln=True)
-    pdf.cell(0, 10, f"Ponto(s) Avaliado(s): {nova_avaliacao['pontos']}", ln=True)
-    pdf.cell(0, 10, f"Média de Adultos: {nova_avaliacao['media_adultos']}", ln=True)
-    pdf.cell(0, 10, f"Média de Ninfas: {nova_avaliacao['media_ninfas']}", ln=True)
+    pdf.cell(0, 10, f"Data da Avaliação: {nova_avaliacao.get('data', 'N/A')}", ln=True)
+    pdf.cell(0, 10, f"Ponto(s) Avaliado(s): {nova_avaliacao.get('pontos', 'N/A')}", ln=True)
+    pdf.cell(0, 10, f"Média de Adultos: {nova_avaliacao.get('media_real_adultos', 'N/A')}", ln=True)
+    pdf.cell(0, 10, f"Média de Ninfas: {nova_avaliacao.get('media_real_ninfas', 'N/A')}", ln=True)
     pdf.ln(5)
 
     pdf.set_font("Arial", "B", 12)
@@ -43,5 +43,4 @@ def gerar_relatorio_pdf(fazenda, talhao, nova_avaliacao, recomendacoes, historic
         pdf.cell(65, 8, str(row["media_real"]), 1)
         pdf.cell(65, 8, str(row["media_prevista"]), 1, ln=True)
 
-    # ✅ Ajuste de encoding aqui para evitar erro de Unicode
     return pdf.output(dest="S").encode("latin-1", "replace")
