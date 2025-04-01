@@ -7,6 +7,7 @@ from components.relatorio_pdf import gerar_relatorio_pdf
 import datetime
 import os
 import json
+import io
 
 st.set_page_config(page_title="Monitoramento da Cigarrinha-do-Milho", layout="wide")
 st.title("Monitoramento da Cigarrinha-do-Milho")
@@ -46,7 +47,6 @@ if st.sidebar.button("Gerar Análise"):
         st.markdown(recomendacoes)
         st.success("Análise concluída.")
 
-        # Salvar dados da avaliação localmente
         pasta = "avaliacoes_salvas"
         os.makedirs(pasta, exist_ok=True)
         nome_base = f"{fazenda}_{talhao}_{data_avaliacao}".replace(" ", "_")
@@ -69,4 +69,22 @@ if st.sidebar.button("Gerar Análise"):
             caminho_imagem = imagem_path
 
         if st.button("Baixar Relatório PDF"):
-            gerar_relatorio_pdf(fazenda, talhao, cidade, data_avaliacao, dados_pontos, populacao_prevista, recomendacoes, caminho_imagem)
+            buffer = io.BytesIO()
+            gerar_relatorio_pdf(
+                fazenda=fazenda,
+                talhao=talhao,
+                cidade=cidade,
+                data=data_avaliacao,
+                dados_pontos=dados_pontos,
+                populacao_prevista=[p["pop"] for p in populacao_prevista],
+                recomendacoes=recomendacoes,
+                caminho_imagem=caminho_imagem,
+                buffer=buffer
+            )
+
+            st.download_button(
+                label="📄 Clique aqui para baixar o relatório",
+                data=buffer,
+                file_name="relatorio.pdf",
+                mime="application/pdf"
+            )
